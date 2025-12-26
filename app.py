@@ -2,6 +2,7 @@ import streamlit as st
 import pickle
 import numpy as np
 import pandas as pd
+import re
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -13,18 +14,15 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Global Font */
     html, body, [class*="css"] {
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
-    
-    /* Remove default top padding */
+
     .block-container {
         padding-top: 2rem;
         padding-bottom: 5rem;
     }
 
-    /* Style the Text Input */
     .stTextInput > div > div > input {
         padding: 12px 20px;
         border-radius: 25px;
@@ -37,7 +35,6 @@ st.markdown("""
         box-shadow: 0 0 5px rgba(0, 173, 181, 0.5);
     }
 
-    /* Style the Buttons */
     .stButton > button {
         border-radius: 20px;
         background-color: #00ADB5;
@@ -53,17 +50,14 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     }
 
-    /* Card Styling */
     div[data-testid="stVerticalBlock"] > div[style*="background-color"] {
         border-radius: 15px;
         padding: 20px;
     }
-    
-    /* Hide Streamlit Branding */
+
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* Match Type Badge */
+
     .match-badge {
         font-size: 0.75rem;
         padding: 2px 8px;
@@ -72,8 +66,8 @@ st.markdown("""
         display: inline-block;
         font-weight: bold;
     }
-    .badge-title { background-color: #FFD700; color: black; } /* Gold for Title Match */
-    .badge-plot { background-color: #00ADB5; color: white; }   /* Teal for Plot Match */
+    .badge-title { background-color: #FFD700; color: black; }
+    .badge-plot { background-color: #00ADB5; color: white; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -111,34 +105,59 @@ except Exception as e:
     st.error(f"Critical Error: {e}")
     st.stop()
 
+def normalize_text(text):
+    text = re.sub(r'[^\w\s]', '', text)
+    return text.lower().strip()
+
 def search_movies(query, model, embeddings, metadata):
     results = []
     seen_titles = set()
+    
+    norm_query = normalize_text(query)
+    query_words = norm_query.split()
 
     title_matches = []
-    query_lower = query.lower().strip()
-
-    target_movie_vector = None 
     
     for idx, meta in enumerate(metadata):
-        if query_lower in meta['Title'].lower():
+        norm_title = normalize_text(meta['Title'])
+        score = 0
+
+        if norm_query == norm_title:
+            score = 3
+
+        elif norm_title.startswith(norm_query):
+            score = 2
+
+        else:
+            all_words_found = True
+            for word in query_words:
+                if not re.search(r'\b' + re.escape(word) + r'\b', norm_title):
+                    all_words_found = False
+                    break
+            
+            if all_words_found:
+                score = 1
+
+        if score > 0:
             title_matches.append({
                 'meta': meta,
                 'year': meta['Year'],
                 'type': 'Title Match',
-                'vector': embeddings[idx]
+                'vector': embeddings[idx],
+                'match_score': score
             })
-    
-    title_matches.sort(key=lambda x: x['year'], reverse=True)
+
+    title_matches.sort(key=lambda x: (x['match_score'], x['year']), reverse=True)
+
+    target_movie_vector = None
+    if title_matches:
+        target_movie_vector = title_matches[0]['vector']
 
     for item in title_matches:
         if item['meta']['Title'] not in seen_titles:
             results.append(item)
             seen_titles.add(item['meta']['Title'])
-
-            if target_movie_vector is None:
-                target_movie_vector = item['vector']
-
+    
     if target_movie_vector is not None:
         query_vec = target_movie_vector.reshape(1, -1)
         search_type_label = "Similar Plot"
@@ -147,14 +166,14 @@ def search_movies(query, model, embeddings, metadata):
         search_type_label = "Plot Match"
 
     sim_scores = cosine_similarity(query_vec, embeddings)[0]
-    
+
     top_indices = sim_scores.argsort()[-60:][::-1]
     
     plot_candidates = []
     for idx in top_indices:
         meta = metadata[idx]
         title = meta['Title']
-
+        
         if title in seen_titles: continue
         
         plot_candidates.append({
@@ -164,7 +183,7 @@ def search_movies(query, model, embeddings, metadata):
             'score': sim_scores[idx]
         })
         seen_titles.add(title)
-        
+
     plot_candidates.sort(key=lambda x: x['year'], reverse=True)
 
     results.extend(plot_candidates)
@@ -189,14 +208,14 @@ if query:
     
     grid_cols = st.columns(2)
     count_displayed = 0
-    
+
     for item in search_results:
         if count_displayed >= st.session_state.limit:
             break
             
         meta = item['meta']
         match_type = item['type']
-        
+
         badge_class = "badge-title" if match_type == "Title Match" else "badge-plot"
         
         col_idx = count_displayed % 2
@@ -221,7 +240,7 @@ if query:
                     st.write(f"...{meta['Text']}...")
         
         count_displayed += 1
-        
+
     if count_displayed >= st.session_state.limit and count_displayed < len(search_results):
         st.markdown("<br>", unsafe_allow_html=True)
         c1, c2, c3 = st.columns([1, 1, 1])
