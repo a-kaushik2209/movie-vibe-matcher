@@ -10,59 +10,123 @@ st.set_page_config(
     page_title="CineMatch AI",
     page_icon="🎬",
     layout="wide",
-    initial_sidebar_state="expanded" 
+    initial_sidebar_state="expanded"
 )
 
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
+
     html, body, [class*="css"] {
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        font-family: 'Poppins', sans-serif;
+        background-color: #0b0c10; /* Ultra Dark Navy */
+        color: #c5c6c7;
     }
+
     .block-container {
         padding-top: 2rem;
         padding-bottom: 5rem;
     }
+
     .stTextInput > div > div > input {
-        padding: 12px 20px;
-        border-radius: 25px;
-        border: 1px solid #444;
-        background-color: #1E1E1E;
-        color: #fff;
-    }
-    .stTextInput > div > div > input:focus {
-        border-color: #00ADB5;
-        box-shadow: 0 0 5px rgba(0, 173, 181, 0.5);
-    }
-    .stButton > button {
-        border-radius: 20px;
-        background-color: #00ADB5;
-        color: white;
-        border: none;
-        padding: 0.5rem 2rem;
-        font-weight: 600;
+        padding: 18px 30px;
+        font-size: 1.15rem;
+        border-radius: 50px;
+        border: 2px solid #1f2833;
+        background: rgba(31, 40, 51, 0.8);
+        color: #66fcf1; /* Cyan Text */
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
         transition: all 0.3s ease;
     }
-    .stButton > button:hover {
-        background-color: #007F85;
-        transform: scale(1.02);
+    .stTextInput > div > div > input:focus {
+        border-color: #45a29e;
+        box-shadow: 0 0 25px rgba(102, 252, 241, 0.3);
+        background: rgba(31, 40, 51, 1);
     }
-    div[data-testid="stVerticalBlock"] > div[style*="background-color"] {
-        border-radius: 15px;
-        padding: 20px;
-    }
-    .match-badge {
-        font-size: 0.75rem;
-        padding: 2px 8px;
-        border-radius: 4px;
-        margin-bottom: 8px;
-        display: inline-block;
-        font-weight: bold;
-    }
-    .badge-title { background-color: #FFD700; color: black; }
-    .badge-plot { background-color: #00ADB5; color: white; }
     
+    div[data-testid="stVerticalBlock"] > div[style*="background-color"] {
+        background: transparent !important;
+    }
+    
+    .movie-card {
+        background: linear-gradient(145deg, #1f2833, #0b0c10);
+        padding: 25px;
+        border-radius: 20px;
+        border: 1px solid #1f2833;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+        margin-bottom: 25px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .movie-card:hover {
+        transform: translateY(-8px) scale(1.01);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+        border-color: #66fcf1; /* Glow on hover */
+    }
+
+    .movie-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin: 10px 0 5px 0;
+        background: -webkit-linear-gradient(#fff, #a5a5a5);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1.2;
+    }
+    .movie-meta {
+        color: #45a29e;
+        font-size: 0.95rem;
+        font-weight: 400;
+        margin-bottom: 15px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .badge {
+        font-size: 0.75rem;
+        padding: 5px 12px;
+        border-radius: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: inline-block;
+    }
+    .badge-gold { 
+        background: linear-gradient(45deg, #FFD700, #FDB931); 
+        color: #000; 
+        box-shadow: 0 4px 10px rgba(255, 215, 0, 0.2); 
+    }
+    .badge-teal { 
+        background: rgba(69, 162, 158, 0.2); 
+        color: #66fcf1; 
+        border: 1px solid #45a29e; 
+    }
+
+    .stButton > button {
+        width: 100%;
+        border-radius: 15px;
+        background: linear-gradient(90deg, #45a29e 0%, #66fcf1 100%);
+        color: #0b0c10;
+        border: none;
+        padding: 0.8rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
+    }
+    .stButton > button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 20px rgba(102, 252, 241, 0.5);
+        color: #000;
+    }
+
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -91,7 +155,7 @@ def load_resources():
     return model, full_data['embeddings'], full_data['metadata']
 
 try:
-    with st.spinner("Initializing AI Engine..."):
+    with st.spinner("Lighting up the Cinema..."):
         model, embeddings, metadata = load_resources()
     if model is None:
         st.error("System Error: Database files missing.")
@@ -169,17 +233,20 @@ def search_movies(query, model, embeddings, metadata):
     return results
 
 with st.sidebar:
-    st.header("⚙️ Preferences")
-    sort_option = st.radio("Sort Results By:", ["Newest First", "Best Match"])
+    st.markdown("## **Studio Settings**")
     st.markdown("---")
-    st.info("**Tip:** Search by plot (e.g. 'Time travel romance') or by movie title (e.g. 'Inception') only.*")
+    st.write("Sorting Preference:")
+    sort_option = st.radio("", ["Newest Releases", "Best Match"], label_visibility="collapsed")
+    st.markdown("---")
+    st.info("**Pro Tip:**\nTry abstract searches like:\n*\"Cyberpunk detective story\"*\n*\"Space opera with war\"*")
 
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    st.markdown("<h1 style='text-align: center; color: #00ADB5;'>CineMatch AI</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #888; margin-top: -15px;'>Universal Search: Titles & Plots</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #66fcf1; font-size: 3.5rem; font-weight: 800; letter-spacing: -2px; text-shadow: 0 0 30px rgba(102, 252, 241, 0.4);'>CINEMATCH</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #888; letter-spacing: 4px; text-transform: uppercase; font-size: 0.8rem; margin-top: -20px;'>AI Powered Discovery</p>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-query = st.text_input("", placeholder="Type a movie name or describe a plot...", label_visibility="collapsed")
+query = st.text_input("", placeholder="🔍 Search movies, plots, or vibes...", label_visibility="collapsed")
 
 if query and (query != st.session_state.last_query or not st.session_state.search_results):
     st.session_state.limit = 6
@@ -190,50 +257,55 @@ if st.session_state.search_results:
     titles = [r for r in st.session_state.search_results if r['type'] == 'Title Match']
     plots = [r for r in st.session_state.search_results if r['type'] != 'Title Match']
     
-    if sort_option == "Newest First":
+    if sort_option == "Newest Releases":
         plots.sort(key=lambda x: x['year'], reverse=True)
     else:
         plots.sort(key=lambda x: x['score'], reverse=True)
-
-    sorted_display_list = titles + plots
     
+    sorted_display_list = titles + plots
     visible_results = sorted_display_list[:st.session_state.limit]
 
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
     grid_cols = st.columns(2)
     
     for i, item in enumerate(visible_results):
         meta = item['meta']
         match_type = item['type']
-        badge_class = "badge-title" if match_type == "Title Match" else "badge-plot"
         
+        if match_type == "Title Match":
+            badge_html = '<span class="badge badge-gold">★ DIRECT HIT</span>'
+            border_glow = "border: 1px solid #FFD700;" 
+        else:
+            match_pct = int(item["score"]*100)
+            badge_html = f'<span class="badge badge-teal">MATCH SCORE: {match_pct}%</span>'
+            border_glow = ""
+
         col_idx = i % 2
         with grid_cols[col_idx]:
             with st.container():
                 st.markdown(f"""
-                <div style="
-                    background-color: #262730;
-                    padding: 20px;
-                    border-radius: 12px;
-                    margin-bottom: 20px;
-                    border: 1px solid #333;
-                    position: relative;
-                ">
-                    <span class="match-badge {badge_class}">{match_type}</span>
-                    <h3 style="margin: 10px 0 0 0; color: #EEE;">{meta['Title']}</h3>
-                    <p style="color: #00ADB5; font-size: 0.9em; margin-top: 5px;">{meta['Year']} • {meta['Genre']}</p>
+                <div class="movie-card" style="{border_glow}">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div style="width: 85%;">
+                            {badge_html}
+                            <div class="movie-title">{meta['Title']}</div>
+                            <div class="movie-meta">{meta['Year']} • {meta['Genre']}</div>
+                        </div>
+                        <div style="font-size: 2.5rem; opacity: 0.2;">🎬</div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
-                with st.expander(f"View Plot ({meta['Year']})"):
-                    st.write(f"...{meta['Text']}...")
+                
+                with st.expander(f"Read Plot Synopsis"):
+                    st.write(meta['Text'])
 
     if st.session_state.limit < len(sorted_display_list):
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<br><br>", unsafe_allow_html=True)
         c1, c2, c3 = st.columns([1, 1, 1])
         with c2:
-            if st.button("Load More Results", use_container_width=True):
+            if st.button("Load More Results"):
                 st.session_state.limit += 6
                 st.rerun()
 
 elif query:
-    st.warning(f"No results found for '{query}'.")
+    st.markdown(f"<br><h3 style='text-align: center; color: #444;'>No signals found for '{query}'...</h3>", unsafe_allow_html=True)
